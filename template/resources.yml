@@ -40,7 +40,7 @@ Resources:
     Properties:
       Name: 'silaskumi/week2lab/week2labparameter'
       Type: String
-      Value: ''
+      Value: "placeholder"
 
   SecretsManagerItem:
     Type: AWS::SecretsManager::Secret
