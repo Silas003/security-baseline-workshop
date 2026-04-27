@@ -69,7 +69,7 @@ Resources:
       BucketName: !Ref s3BucketName
 
   Restricts3BucketAccess:
-    Type: AWS::S3::BucketPolicy
+    Type: AWS::S3::BucketPolicy  #resource-based policy to restrict access to the S3 bucket for the specific IAM user
     DependsOn: IamUser
     Properties:
       Bucket: !Ref s3Bucket
