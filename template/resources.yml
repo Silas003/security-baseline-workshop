@@ -29,7 +29,7 @@ Parameters:
 
   s3BucketName:
     Type: String
-    Default: 'silaskumi_week2bucket'
+    Default: 'silaskumiweek2bucket'
 
   iamUser:
     Type: String
