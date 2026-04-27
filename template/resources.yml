@@ -46,16 +46,21 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: 'silaskumi/week2lab/week2labsecret'
-      SecretString: ''
-      Description: 'Week 2 Lab Secrets'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "silaskumi"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\\'
+        RequireEachIncludedType: true
 
 
   IamUser:
     Type: AWS::IAM::User
+    DependsOn: SecretsManagerItem
     Properties:
       UserName: !Ref iamUser
       LoginProfile:
-        Password: !
+        Password: !Sub '{{resolve:secretsmanager:${SecretsManagerItem}:SecretString:password}}'
         PasswordResetRequired: true
 
 
