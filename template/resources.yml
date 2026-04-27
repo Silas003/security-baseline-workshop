@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: 'AWS CloudFormation template for the Security Baseline Workshop'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'General Parameters'
+        Parameters:
+          - ec2RoleName
+          - lambdaRoleName
+          - ecsRoleName
+          - s3BucketName
+          - iamUser
+Parameters:
+  ec2RoleName:
+    Type: String
+    Default: 'silaskumi_ec2_role'
+
+  lambdaRoleName:
+    Type: String
+    Default: 'silaskumi_lambda_role'
+
+  ecsRoleName:
+    Type: String
+    Default: 'silaskumi_ecs_role'
+
+  s3BucketName:
+    Type: String
+    Default: 'silaskumi_week2bucket'
+
+  iamUser:
+    Type: String
+    Default: 'silaskumi_week2_iam_user'
+
+Resources:
+  ParameterStoreItem:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: 'silaskumi/week2lab/week2labparameter'
+      Type: String
+      Value: ''
+
+  SecretsManagerItem:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: 'silaskumi/week2lab/week2labsecret'
+      SecretString: ''
+      Description: 'Week 2 Lab Secrets'
+
+
+  IamUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Ref iamUser
+      LoginProfile:
+        Password: !
+        PasswordResetRequired: true
+
+
+  s3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref s3BucketName
+
+
+  Restricts3BucketAccess:
+    Type: AWS::S3::BucketPolicy
+    DependsOn: iamUser
+    Properties:
+      Bucket: !Ref s3Bucket
+      PolicyDocument:
+        Statement:
+          - Sid: RestrictS3BucketPutObjectForSpecificUser
+          - Action:
+              - 's3:PuttObject'
+            Effect: Deny
+            Principal:
+              AWS: !GetAtt IamUser.Arn
+            Resource: !Sub "${s3Bucket.Arn}/*"
+
+
+
+
