@@ -1,4 +1,8 @@
 template-file-path: templates/resources.yml
-stack-name: security-baseline-workshop
-tags:
-  ManagedBy: CloudFormation-GitSync
+parameters:
+  lambdaRoleName: silaskumi_lambda_role
+  ecsRoleName: silaskumi_ecs_role
+  ec2RoleName: silaskumi_ec2_role
+  s3BucketName: silaskumiweek2bucket
+  iamUser: silaskumi_week2_iam_user
+tags: {}
