@@ -13,6 +13,7 @@ Metadata:
           - ecsRoleName
           - s3BucketName
           - iamUser
+
 Parameters:
   ec2RoleName:
     Type: String
@@ -35,12 +36,12 @@ Parameters:
     Default: 'silaskumi_week2_iam_user'
 
 Resources:
-ParameterStoreItem:
-  Type: AWS::SSM::Parameter
-  Properties:
-    Name: '/silaskumi/week2lab/week2labparameter'
-    Type: String
-    Value: "placeholder"
+  ParameterStoreItem:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: '/silaskumi/week2lab/week2labparameter'
+      Type: String
+      Value: "placeholder"
 
   SecretsManagerItem:
     Type: AWS::SecretsManager::Secret
@@ -53,7 +54,6 @@ ParameterStoreItem:
         ExcludeCharacters: '"@/\\'
         RequireEachIncludedType: true
 
-
   IamUser:
     Type: AWS::IAM::User
     DependsOn: SecretsManagerItem
@@ -63,12 +63,10 @@ ParameterStoreItem:
         Password: !Sub '{{resolve:secretsmanager:${SecretsManagerItem}:SecretString:password}}'
         PasswordResetRequired: true
 
-
   s3Bucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref s3BucketName
-
 
   Restricts3BucketAccess:
     Type: AWS::S3::BucketPolicy
@@ -78,13 +76,9 @@ ParameterStoreItem:
       PolicyDocument:
         Statement:
           - Sid: RestrictS3BucketPutObjectForSpecificUser
-          - Action:
-              - 's3:PuttObject'
+            Action:
+              - 's3:PutObject'
             Effect: Deny
             Principal:
               AWS: !GetAtt IamUser.Arn
             Resource: !Sub "${s3Bucket.Arn}/*"
-
-
-
-
