@@ -72,7 +72,7 @@ Resources:
 
   Restricts3BucketAccess:
     Type: AWS::S3::BucketPolicy
-    DependsOn: iamUser
+    DependsOn: IamUser
     Properties:
       Bucket: !Ref s3Bucket
       PolicyDocument:
