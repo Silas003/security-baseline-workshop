@@ -35,12 +35,12 @@ Parameters:
     Default: 'silaskumi_week2_iam_user'
 
 Resources:
-  ParameterStoreItem:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: 'silaskumi/week2lab/week2labparameter'
-      Type: String
-      Value: "placeholder"
+ParameterStoreItem:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: '/silaskumi/week2lab/week2labparameter'
+    Type: String
+    Value: "placeholder"
 
   SecretsManagerItem:
     Type: AWS::SecretsManager::Secret
