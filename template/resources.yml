@@ -13,6 +13,8 @@ Metadata:
           - ecsRoleName
           - s3BucketName
           - iamUser
+          - instanceType
+          - ami
 
 Parameters:
   ec2RoleName:
@@ -35,7 +37,17 @@ Parameters:
     Type: String
     Default: 'silaskumi_week2_iam_user'
 
+  instanceType:
+    Type: String
+    Default: 't2.micro'
+
+  ami:
+    Type: String
+    Default: 'ami-0c7191dc6b3e08b56'
+
 Resources:
+
+
   ParameterStoreItem:
     Type: AWS::SSM::Parameter
     Properties:
@@ -54,6 +66,7 @@ Resources:
         ExcludeCharacters: '"@/\\'
         RequireEachIncludedType: true
 
+
   IamUser:
     Type: AWS::IAM::User
     DependsOn: SecretsManagerItem
@@ -63,22 +76,243 @@ Resources:
         Password: !Sub '{{resolve:secretsmanager:${SecretsManagerItem}:SecretString:password}}'
         PasswordResetRequired: true
 
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref ec2RoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref lambdaRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  ECSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref ecsRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+
   s3Bucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref s3BucketName
 
+  RestrictedS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${s3BucketName}-restricted'
+
   Restricts3BucketAccess:
-    Type: AWS::S3::BucketPolicy  #resource-based policy to restrict access to the S3 bucket for the specific IAM user
+    Type: AWS::S3::BucketPolicy
     DependsOn: IamUser
     Properties:
       Bucket: !Ref s3Bucket
       PolicyDocument:
         Statement:
-          - Sid: RestrictS3BucketPutObjectForSpecificUser
+          - Sid: DenyPutObjectForOthers
             Action:
               - 's3:PutObject'
             Effect: Deny
+            Principal: "*"
+            Condition:
+              StringNotEquals:
+                aws:PrincipalArn: !GetAtt IamUser.Arn
+            Resource: !Sub "${s3Bucket.Arn}/*"
+
+          - Sid: AllowPutObjectForIamUser
+            Action:
+              - 's3:PutObject'
+            Effect: Allow
             Principal:
               AWS: !GetAtt IamUser.Arn
             Resource: !Sub "${s3Bucket.Arn}/*"
+
+  RestrictedBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref RestrictedS3Bucket
+      PolicyDocument:
+        Statement:
+          - Sid: DenyNonVPCAccess
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt RestrictedS3Bucket.Arn
+              - !Sub "${RestrictedS3Bucket.Arn}/*"
+            Condition:
+              StringNotEquals:
+                aws:SourceVpce: !Ref GatewayEndpoint
+
+
+  ParisVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-3a
+      VpcId: !Ref ParisVPC
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-3a
+      VpcId: !Ref ParisVPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: false
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: ParisVPC
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref ParisVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt ElasticIP.AllocationId
+      SubnetId: !Ref PublicSubnet
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ParisVPC
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ParisVPC
+
+  RouteTrafficToIGW:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - AttachGateway
+      - InternetGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  RouteTrafficToNAT:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - NATGateway
+      - PrivateSubnet
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
+
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EC2 instance
+      VpcId: !Ref ParisVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ami
+      InstanceType: !Ref instanceType
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+      IamInstanceProfile: !Ref EC2InstanceProfile
+
+
+  GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Gateway
+      VpcId: !Ref ParisVPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable
+
+  InterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      VpcId: !Ref ParisVPC
+      SubnetIds:
+        - !Ref PrivateSubnet
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.logs
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action:
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+              - "logs:DescribeLogGroups"
+              - "logs:DescribeLogStreams"
