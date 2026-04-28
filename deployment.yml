@@ -1,5 +1,3 @@
 template-file-path: template/resources.yml
-stack-name: security-baseline-workshop
-
-tags:
-  ManagedBy: CloudFormation-GitSync
+parameters: {}
+tags: {}
