@@ -279,7 +279,6 @@ Resources:
         - !Ref InstanceSecurityGroup
       IamInstanceProfile: !Ref EC2InstanceProfile
 
-
   GatewayEndpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties:
@@ -289,20 +288,6 @@ Resources:
       RouteTableIds:
         - !Ref PublicRouteTable
         - !Ref PrivateRouteTable
-
-
-InterfaceEndpoint:
-  Type: AWS::EC2::VPCEndpoint
-  DependsOn: EndpointSecurityGroup
-  Properties:
-    VpcEndpointType: Interface
-    VpcId: !Ref ParisVPC
-    SubnetIds:
-      - !Ref PrivateSubnet
-    SecurityGroupIds:
-      - !Ref EndpointSecurityGroup
-    ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
-    PrivateDnsEnabled: false
 
   EndpointSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -314,3 +299,16 @@ InterfaceEndpoint:
           FromPort: 443
           ToPort: 443
           CidrIp: 10.0.0.0/16
+
+  InterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    DependsOn: EndpointSecurityGroup
+    Properties:
+      VpcEndpointType: Interface
+      VpcId: !Ref ParisVPC
+      SubnetIds:
+        - !Ref PrivateSubnet
+      SecurityGroupIds:
+        - !Ref EndpointSecurityGroup
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssm
+      PrivateDnsEnabled: false
