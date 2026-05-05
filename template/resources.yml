@@ -290,36 +290,27 @@ Resources:
         - !Ref PublicRouteTable
         - !Ref PrivateRouteTable
 
-  InterfaceEndpoint:
-    Type: AWS::EC2::VPCEndpoint
+
+InterfaceEndpoint:
+  Type: AWS::EC2::VPCEndpoint
+  DependsOn: EndpointSecurityGroup
+  Properties:
+    VpcEndpointType: Interface
+    VpcId: !Ref ParisVPC
+    SubnetIds:
+      - !Ref PrivateSubnet
+    SecurityGroupIds:
+      - !Ref EndpointSecurityGroup
+    ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+    PrivateDnsEnabled: false
+
+  EndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
     Properties:
-      VpcEndpointType: Interface
+      GroupDescription: Security group for VPC endpoint
       VpcId: !Ref ParisVPC
-      SubnetIds:
-        - !Ref PrivateSubnet
-
-      SecurityGroupIds:
-        - !Ref EndpointSecurityGroup
-      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
-      PrivateDnsEnabled: false
-      PolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal: "*"
-            Action:
-              - "logs:CreateLogGroup"
-              - "logs:CreateLogStream"
-              - "logs:PutLogEvents"
-              - "logs:DescribeLogGroups"
-              - "logs:DescribeLogStreams"
-
-    EndpointSecurityGroup:
-      Type: AWS::EC2::SecurityGroup
-      Properties:
-        GroupDescription: Security group for VPC endpoint
-        VpcId: !Ref ParisVPC
-        SecurityGroupIngress:
-          - IpProtocol: tcp
-            FromPort: 443
-            ToPort: 443
-            CidrIp: 10.0.0.0/16
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.0.0.0/16
