@@ -157,14 +157,27 @@ Resources:
     Properties:
       Bucket: !Ref RestrictedS3Bucket
       PolicyDocument:
+        Version: "2012-10-17"
         Statement:
-          - Sid: DenyNonVPCAccess
+
+          - Sid: AllowCloudFormationManagement
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/silas-iam
+            Action:
+              - "s3:PutBucketTagging"
+              - "s3:PutBucketPolicy"
+              - "s3:GetBucketLocation"
+            Resource: !GetAtt RestrictedS3Bucket.Arn
+
+          - Sid: DenyObjectAccessOutsideVPC
             Effect: Deny
             Principal: "*"
-            Action: "s3:*"
-            Resource:
-              - !GetAtt RestrictedS3Bucket.Arn
-              - !Sub "${RestrictedS3Bucket.Arn}/*"
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+            Resource: !Sub "${RestrictedS3Bucket.Arn}/*"
             Condition:
               StringNotEquals:
                 aws:SourceVpce: !Ref GatewayEndpoint
