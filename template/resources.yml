@@ -122,8 +122,7 @@ Resources:
               Service: ecs-tasks.amazonaws.com
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
 
   s3Bucket:
     Type: AWS::S3::Bucket
@@ -152,13 +151,6 @@ Resources:
                 aws:PrincipalArn: !GetAtt IamUser.Arn
             Resource: !Sub "${s3Bucket.Arn}/*"
 
-          - Sid: AllowPutObjectForIamUser
-            Action:
-              - 's3:PutObject'
-            Effect: Allow
-            Principal:
-              AWS: !GetAtt IamUser.Arn
-            Resource: !Sub "${s3Bucket.Arn}/*"
 
   RestrictedBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -282,7 +274,7 @@ Resources:
     Properties:
       ImageId: !Ref ami
       InstanceType: !Ref instanceType
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref PrivateSubnet
       SecurityGroupIds:
         - !Ref InstanceSecurityGroup
       IamInstanceProfile: !Ref EC2InstanceProfile
@@ -305,7 +297,11 @@ Resources:
       VpcId: !Ref ParisVPC
       SubnetIds:
         - !Ref PrivateSubnet
-      ServiceName: !Sub com.amazonaws.${AWS::Region}.logs
+
+      SecurityGroupIds:
+        - !Ref EndpointSecurityGroup
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      PrivateDnsEnabled: false
       PolicyDocument:
         Statement:
           - Effect: Allow
@@ -316,3 +312,14 @@ Resources:
               - "logs:PutLogEvents"
               - "logs:DescribeLogGroups"
               - "logs:DescribeLogStreams"
+
+    EndpointSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security group for VPC endpoint
+        VpcId: !Ref ParisVPC
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 10.0.0.0/16
