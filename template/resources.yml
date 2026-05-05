@@ -19,23 +19,23 @@ Metadata:
 Parameters:
   ec2RoleName:
     Type: String
-    Default: 'silaskumi_ec2_role'
+    Default: 'silaskumi_ec2_role3'
 
   lambdaRoleName:
     Type: String
-    Default: 'silaskumi_lambda_role'
+    Default: 'silaskumi_lambda_role3'
 
   ecsRoleName:
     Type: String
-    Default: 'silaskumi_ecs_role'
+    Default: 'silaskumi_ecs_role3'
 
   s3BucketName:
     Type: String
-    Default: 'silaskumiweek2bucket'
+    Default: 'silaskumiweek2bucket3'
 
   iamUser:
     Type: String
-    Default: 'silaskumi_week2_iam_user'
+    Default: 'silaskumi_week2_iam_user3'
 
   instanceType:
     Type: String
@@ -51,14 +51,14 @@ Resources:
   ParameterStoreItem:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: '/silaskumi/week2lab/week2labparameter'
+      Name: '/silaskumi/week2lab/week2labparamter3'
       Type: String
       Value: "placeholder"
 
   SecretsManagerItem:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: 'silaskumi/week2lab/week2labsecret'
+      Name: 'silaskumi/week2lab/week2labsecret3'
       GenerateSecretString:
         SecretStringTemplate: '{"username": "silaskumi"}'
         GenerateStringKey: 'password'
